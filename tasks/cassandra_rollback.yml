@@ -1,0 +1,28 @@
+---
+
+# Exit if 'cassandra_minor_version' is not defined
+- fail: msg="Can't Rollback Cassandra if 'cassandra_minor_version' is defined to 'latest' !"
+  when: cassandra_minor_version == "latest"
+
+# Rollback to Cassandra specific version
+- name: Cassandra installation status
+  shell: dpkg -s cassandra > /dev/null 2>&1
+  register: cassandra_installation_status
+  ignore_errors: yes
+  changed_when: false
+
+# if Return Code (rc) is not equal to zero, then Cassandra is not installed
+- fail: msg="Can't Rollback Cassandra, since Cassandra is not installed !"
+  when: cassandra_installation_status.rc != 0
+
+- name: Rollback to specific Cassandra version
+  apt: name=cassandra={{ cassandra_minor_version }} state=present force=yes
+  when: cassandra_minor_version != "latest"
+  register: restart_cassandra
+
+- name: Cassandra Restart
+  service: name=cassandra state=restarted
+  when: restart_cassandra|changed
+
+- name: Wait for Cassandra
+  wait_for: port={{ cassandra_thrift_client_api_port  }}

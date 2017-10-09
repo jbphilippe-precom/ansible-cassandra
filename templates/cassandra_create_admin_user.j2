@@ -1,0 +1,4 @@
+ALTER KEYSPACE system_auth 
+  WITH REPLICATION =  { 'class' : 'SimpleStrategy', 'replication_factor' : {{ cassandra_system_auth_replication_factor }} };
+
+CREATE USER admin WITH PASSWORD '{{ cassandra_admin_password  }}' SUPERUSER;

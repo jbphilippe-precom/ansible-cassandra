@@ -1,0 +1,4 @@
+[cassandra_hosts]
+{% for host in groups[cassandra_group_hosts] %}
+   {{ host }}
+{% endfor %}

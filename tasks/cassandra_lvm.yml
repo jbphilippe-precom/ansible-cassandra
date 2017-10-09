@@ -1,0 +1,24 @@
+---
+- name: Install XFS utils
+  apt: name={{ item }} update_cache=yes state=latest
+  with_items:
+    - xfsprogs
+
+- name: Create Cassandra LV
+  lvol: vg={{ cassandra_vg_name }} lv={{ cassandra_lv_name }} size={{ cassandra_lv_size }}
+
+- name: Create XFS filesystem for Cassandra on Xenial
+  filesystem: fstype=xfs dev=/dev/{{ cassandra_vg_name }}/{{ cassandra_lv_name }}
+  when: ansible_distribution_release == 'xenial'
+
+- name: Create ext4 filesystem for Cassandra on Trusty
+  filesystem: fstype=ext4 dev=/dev/{{ cassandra_vg_name }}/{{ cassandra_lv_name }}
+  when: ansible_distribution_release == 'trusty'
+
+- name: Create mounpoint for Cassandra on Trusty
+  mount: name={{ cassandra_datadir }} src=/dev/mapper/{{ cassandra_vg_name }}-{{ cassandra_lv_name }} fstype=ext4 opts=noatime state=mounted
+  when: ansible_distribution_release == 'trusty'
+
+- name: Create mounpoint for Cassandra on Xenial
+  mount: name={{ cassandra_datadir }} src=/dev/mapper/{{ cassandra_vg_name }}-{{ cassandra_lv_name }} fstype=xfs opts=noatime state=mounted
+  when: ansible_distribution_release == 'xenial'

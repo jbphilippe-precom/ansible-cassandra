@@ -1,0 +1,66 @@
+---
+
+- name: IPTables-Persistent
+  apt: name=iptables-persistent state=latest
+
+- name: IPTables-Persistent-CFG1
+  shell: echo 'iptables-persistent iptables-persistent/autosave_v4 boolean true' | debconf-set-selections
+  changed_when: False
+
+- name: IPTables-Persistent-CFG2
+  shell: echo 'iptables-persistent iptables-persistent/autosave_v6 boolean false' | debconf-set-selections
+  changed_when: False
+
+- name: Install ufw - Iptables rules management
+  apt: name=ufw state=latest
+
+- name: Allow Cassandra s JMX access from localhost
+  ufw: proto=tcp port=7199 rule=allow src=127.0.0.1
+
+- name: Set prod interface
+  set_fact: cassandra_interface_prod="ansible_{{ cassandra_interface }}"
+
+- name: Allow Cassandra s JMX access from other nodes
+  ufw: proto=tcp rule=allow port=7199 src={{ hostvars[item][cassandra_interface_prod]['ipv4']['address'] }}
+#  with_items: groups['{{ cassandra_host_group  }}']
+  with_items: "{{ groups[cassandra_host_group ]}}"
+
+- name: Reject Cassandra s JMX access from everywhere else
+  ufw: proto=tcp rule=deny port=7199
+
+- name: Active ufw
+  ufw: state=enabled policy=allow
+
+- name: Starting Cassandra
+  service: name=cassandra state=started
+
+- name: Copy script to create admin user
+  template: src=cassandra_create_admin_user.j2 dest=/usr/bin/cassandra_create_admin_user.cql owner=root group=root mode=0755
+  when: cassandra_add_admin_user|bool
+
+- name: Wait for Cassandra
+  wait_for: port={{ cassandra_thrift_client_api_port  }}
+
+- name: Waiting...
+  pause: seconds=20
+
+- name: Check if CQL has already been execute
+  stat: path=/etc/cassandra/cql_execution.txt
+  register: cql_execution
+
+- name: Create Admin user
+  command: cqlsh -u cassandra -p cassandra -f /usr/bin/cassandra_create_admin_user.cql creates=/etc/cassandra/cassandra_add_admin_user.txt
+  when: cassandra_add_admin_user|bool and cql_execution.stat.exists == False and ansible_fqdn == hostvars[groups[cassandra_group_hosts][0]]['ansible_fqdn']
+
+- name: Delete Cassandra default User
+  shell: echo "DROP USER cassandra;" > /tmp/QUERY; cqlsh -uadmin -p{{ cassandra_admin_password  }} < /tmp/QUERY
+  when: cassandra_add_admin_user|bool and cql_execution.stat.exists == False and ansible_fqdn == hostvars[groups[cassandra_group_hosts][0]]['ansible_fqdn']
+
+- name: Create tmp file to replay cql or not
+  file: path=/etc/cassandra/cql_execution.txt state=touch mode=0644
+  when: cql_execution.stat.exists == False
+  notify: restart cassandra
+
+- name: CLeaning up keyspaces when adding a new node.
+  command: /usr/bin/cassandra_cleanup_addnode.sh
+  when: cassandra_hosts|changed

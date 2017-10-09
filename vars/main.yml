@@ -1,0 +1,6 @@
+---
+# vars file for ansible-cassandra
+
+cassandra_vg_name: vg_vroot
+cassandra_lv_name: lv_cassandra
+

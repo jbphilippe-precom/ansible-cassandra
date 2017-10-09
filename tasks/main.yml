@@ -1,0 +1,30 @@
+---
+# tasks file for ansible-cassandra
+
+- fail: msg="This play requires 'cassandra_admin_password' in secret.yml"
+  when: cassandra_admin_password is not defined
+  tags: [installation]
+
+- fail: msg="This play requires 'cassandra_cluster_name'"
+  when: cassandra_cluster_name is not defined
+  tags: [installation]
+
+- include: cassandra_install.yml
+  tags: [installation]
+
+#- include: cassandra_configure.yml
+#  tags: configure
+
+#- include: cassandra_topology.yml
+#  tags: topology
+
+#- include: cassandra_securise.yml
+#  tags: securise
+
+- include: cassandra_rollback.yml
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_release == 'trusty'
+  tags: [rollback]
+
+- include: cassandra_testing.yml
+  when: ansible_distribution == 'Ubuntu'
+  tags: [testing]

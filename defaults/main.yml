@@ -1,0 +1,25 @@
+---
+# defaults file for ansible-cassandra
+
+#Installation variables
+cassandra_host_group: Cassandra_nodes
+cassandra_use_lvm: true
+cassandra_lv_size: 5g
+cassandra_datadir: /var/lib/cassandra
+
+#Configuration variables
+cassandra_version: 2.2
+cassandra_minor_version: latest
+cassandra_cluster_name: cluster_cassandra
+cassandra_interface: eth0
+cassandra_row_cache_size_mb: 512
+
+cassandra_add_admin_user: True
+cassandra_system_auth_replication_factor: 2
+cassandra_rpc_address: 0.0.0.0
+cassandra_thrift_client_api_port: 9160
+
+#Configuration files
+cassandra_conf_file: /etc/cassandra/cassandra.yaml
+cassandra_env_file: /etc/cassandra/cassandra-env.sh
+cassandra_logrotate_file: /etc/logrotate.d/cassandra

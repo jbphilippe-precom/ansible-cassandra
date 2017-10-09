@@ -1,0 +1,16 @@
+---
+- hosts: r3t02
+  become: yes
+  roles:
+     - tests/ansible-java
+     - ../ansible-cassandra
+  vars:
+    java_version: 8
+    install_jdk: 1
+    install_jre: 0
+    install_openjdk: 0
+
+    cassandra_cluster_name: Cluster_Cassandra_Trusty_3_0
+    cassandra_host_group: r3t02
+    cassandra_version: 3.0
+    cassandra_admin_password: cassandra

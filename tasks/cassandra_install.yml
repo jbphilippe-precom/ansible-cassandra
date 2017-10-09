@@ -1,0 +1,47 @@
+---
+
+- name: Create facts dir
+  file: path=/etc/ansible/facts.d/ state=directory  owner=root group=root mode=0755
+  register: cassandra_factd_creation
+
+- name: Set hosts group fact
+  set_fact: cassandra_group_hosts={{ cassandra_host_group  }}
+
+- name: Upload inventory facts
+  template: src=cassandra_nodes_list.j2 dest=/etc/ansible/facts.d/cassandra_inventory.fact owner=root group=root mode=0644
+  register: cassandra_hosts
+
+- name: Install utils
+  apt: name=libjemalloc1 update_cache=yes state=latest
+
+#LVM installation
+- include: cassandra_lvm.yml
+  when: cassandra_use_lvm
+
+- name: Cassandra Key
+  apt_key: url=http://mirror.services.local/pubkey/ael.scs.systeme.key state=present
+
+- name: Get major version
+  shell: python -c 'line=str({{ cassandra_version }});line=line.translate(None, ".");line=line+("x");print line;'
+  register: cassandra_major_version
+  changed_when: False
+
+- name: Cassandra APT repository
+  apt_repository: repo='deb http://mirror.services.local/cassandra_{{ cassandra_version }}/ {{ cassandra_major_version.stdout }} main' state=present
+
+- name: Install specific Cassandra Version
+  apt: name=cassandra={{ cassandra_minor_version }} state=present
+  when: cassandra_minor_version != "latest"
+
+- name: Install latest Cassandra version
+  apt: name=cassandra update_cache=yes state=latest
+  when: cassandra_minor_version == "latest"
+
+- include: cassandra_configure.yml
+  tags: [installation]
+
+- include: cassandra_topology.yml
+  tags: [installation]
+
+- include: cassandra_securise.yml
+  tags: [installation]

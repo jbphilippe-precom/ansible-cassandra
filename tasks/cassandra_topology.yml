@@ -1,0 +1,8 @@
+---
+
+- name: Update Cassandra topology file.
+  become: yes
+  template: src="cassandra_topology.tpl" dest="/etc/cassandra/cassandra-topology.properties"
+
+#- name: Remove the first line of the cassandra_topology.
+#  lineinfile: dest="/etc/cassandra/cassandra-topology.properties" state=absent line="cassandra_host_group: "'cassandra_host_group'""

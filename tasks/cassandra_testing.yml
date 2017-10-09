@@ -1,0 +1,38 @@
+---
+- name: Waiting...
+  pause: seconds=20
+
+- name: Is Cassandra Listenning
+  wait_for: port={{ cassandra_thrift_client_api_port }} delay=2 timeout=10
+
+# logrotate
+- stat: path=/etc/logrotate.d/cassandra
+  register: cassandra_logrotate
+
+- name: Verify that logrotate is configured
+  assert:
+    that:
+      - cassandra_logrotate.stat.exists
+
+# Cluster name
+- shell: cqlsh -uadmin -p{{ cassandra_admin_password }} -e "DESCRIBE cluster" | grep {{ cassandra_cluster_name }} | awk '{print $2}'
+  register: cassandra_cluster_name_running
+  changed_when: false
+  when: cassandra_add_admin_user|bool
+
+- name: Print mosh version
+  debug: msg="Mosh Version {{ cassandra_cluster_name_running.stdout }}"
+
+- name: Verify Cluster name
+  assert:
+    that:
+      - "'{{ cassandra_cluster_name }}' in cassandra_cluster_name_running.stdout"
+
+# Cluster facts
+- stat: path=/etc/ansible/facts.d/cassandra_inventory.fact
+  register: cassandra_facts
+
+- name: Verify that facts are configured for the Cassandra Cluster
+  assert:
+    that:
+      - cassandra_facts.stat.exists

@@ -1,0 +1,66 @@
+---
+
+- name: Set concurrent writes.
+  shell: nbcoeur=$(cat /proc/cpuinfo | grep processor | wc -l) && echo $(($nbcoeur * 8))
+  register: cassandra_concurrent_writes
+  changed_when: False
+
+- name: Set concurrent writes fact
+  set_fact: cassandra_concurrent_writes="{{ cassandra_concurrent_writes.stdout }}"
+
+- name: Set prod interface
+  set_fact: cassandra_interface_prod="ansible_{{ cassandra_interface }}"
+
+- name: Check if a template has already been upload
+  lineinfile: dest="{{ cassandra_conf_file }}" line="cluster_name{{ ':' }} '{{ cassandra_cluster_name  }}'" state=present
+  register: cassandra_template_status
+
+- name: Stop Cassandra cluster
+  service: name=cassandra state=stopped
+  when: cassandra_template_status|changed
+
+- name: Update Cassandra configuration file without authent.
+  template: src="cassandra_conf_{{ cassandra_version }}.tpl" dest="{{ cassandra_conf_file }}"
+  when: not cassandra_add_admin_user|bool and cassandra_template_status|changed
+
+- name: Update Cassandra configuration file.
+  template: src="cassandra_conf_{{ cassandra_version }}_auth.tpl" dest="{{ cassandra_conf_file }}"
+  when: cassandra_add_admin_user|bool and cassandra_template_status|changed
+
+- name: Update Cassandra environnement file.
+  template: src="cassandra_env_{{ cassandra_version }}.tpl" dest="{{ cassandra_env_file }}"
+
+- name: Update logrotate Cassandra
+  template: src="cassandra_logrotate_conf.tpl" dest="{{ cassandra_logrotate_file }}"
+
+#- name: Reset all data files
+#  shell: rm -rf {{ cassandra_datadir  }}/*
+#  when: cassandra_template_status|changed
+
+#- name: Search all file of cassandra_datadir
+#  find: path={{ cassandra_datadir  }}/ file_type=file
+#  register: cassandra_files
+
+#- name: Search all dir of cassandra_datadir
+#  find: path={{ cassandra_datadir  }} file_type=directory
+#  register: cassandra_directories
+
+#- name: Print mosh version
+#  debug: "msg='{{ cassandra_files.files }}'"
+
+#- name: Print mosh version2
+#  debug: "msg='{{ cassandra_directories.files }}'"
+
+#- name: Remove files and dirs of cassandra_datadir
+#  file: state=absent path={{ item }}
+#  with_items:
+#    - "{{ cassandra_files.files }}"
+#    - "{{ cassandra_directories.files }}"
+#  when: cassandra_template_status|changed
+
+- name: Remove files and dirs of cassandra_datadir
+  file: state=absent path={{ cassandra_datadir }}/data/
+  when: cassandra_template_status|changed
+
+- name: Copy script to cleanup keyspaces when adding a new node.
+  template: src=cassandra_cleanup.tpl dest=/usr/bin/cassandra_cleanup_addnode.sh owner=root group=root mode=0755
